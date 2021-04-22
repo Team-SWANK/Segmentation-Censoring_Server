@@ -106,7 +106,7 @@ def main():
         # initialize the image IDs and batch of images themselves
         queue = db.lrange(settings.SEGMENT_IMAGE_QUEUE, 0, settings.BATCH_SIZE - 1)
         imageIDs = []
-        batch = None
+        batch = []
         # loop over the queue
         for q in queue:
             # deserialize the object and obtain the input image
@@ -114,10 +114,11 @@ def main():
             image = helpers.base64_decode_image(q["image"], settings.IMAGE_DTYPE, q["shape"])
             # check to see if the batch list is None
             if batch is None:
-                batch = image
+                batch.append(image)
             # otherwise, stack the data
             else:
-                batch = np.vstack([batch, image])
+                print(image.shape)
+                batch.append(image)
             # update the list of image IDs
             imageIDs.append(q["id"])
         
@@ -126,17 +127,17 @@ def main():
             print('* ImageIDs: {}'.format(imageIDs))
             faces = {}
             for i in range(len(batch)):
-                print("* Batch size: {}".format(batch[i].shape))
-                image_cv2 = np.array(batch[i], dtype="uint8")
+                print("* Batch size: {}".format(batch[i][0].shape))
+                image_cv2 = np.array(batch[i][0], dtype="uint8")
                 face = faceCascade.detectMultiScale(
                     image_cv2,
-                    scaleFactor=1.3,
-                    minNeighbors=3,
+                    scaleFactor=1.03,
+                    minNeighbors=5,
                     minSize=(30, 30)
                 )
                 # print("Found {0} Faces!".format(len(faces)))
                 if len(face) == 0:
-                    faces[i] = [[0, 0, batch[i].shape[0], batch[i].shape[1]]]
+                    faces[i] = [[0, 0, batch[i][0].shape[0], batch[i][0].shape[1]]]
                 else:
                     faces[i] = face
             # print(faces)
@@ -148,29 +149,30 @@ def main():
             X_positions = []
             index=0
             for imageNum, faceList in faces.items():
-                image = batch[imageNum]
+                image = batch[imageNum][0]
                 for(x, y, w, h) in faceList:
                     transpose_x, transpose_y = w * 0.75, h * 0.75
                     x_img = math.floor(x-transpose_x) if math.floor(x-transpose_x) >= 0 else 0
                     y_img = math.floor(y-transpose_y) if math.floor(y-transpose_y) >= 0 else 0
-                    w_img = math.floor(w+2*transpose_x) if math.floor(w+2*transpose_x) <= image.shape[0] else image.shape[0]
-                    h_img = math.floor(h+2*transpose_y) if math.floor(w+2*transpose_y) <= image.shape[1] else image.shape[1]
+                    w_img = math.floor(w+2*transpose_x) if x_img + math.floor(w+2*transpose_x) <= image.shape[1] else image.shape[1] - x_img
+                    h_img = math.floor(h+2*transpose_y) if y_img + math.floor(w+2*transpose_y) <= image.shape[0] else image.shape[0] - y_img
                     X_positions.append([x_img, y_img, w_img, h_img])
                     roi_color = image[y_img:h_img+y_img, x_img:w_img+x_img]
+                    print(roi_color.shape)
                     X[index] = resize(roi_color, (settings.IMAGE_HEIGHT, settings.IMAGE_WIDTH), mode='constant', preserve_range=True)
                     index +=1
             preds_test = (model.predict(X, verbose=1) > 0.9).astype(np.uint8)
             index = 0
             masks = []
             for imageNum, faceList in faces.items():
-                upsampled_mask = np.zeros((batch[imageNum].shape[0], batch[imageNum].shape[1]), dtype=np.uint8)
+                upsampled_mask = np.zeros((batch[imageNum][0].shape[0], batch[imageNum][0].shape[1]), dtype=np.uint8)
                 for i in range(index, index+len(faceList)):
                     coords = X_positions[i]
                     if coords[2] == upsampled_mask.shape[0] and coords[3] == upsampled_mask.shape[1]:
-                        section = resize(np.squeeze(preds_test[i]), (upsampled_mask.shape[0], upsampled_mask.shape[1]), preserve_range=True)
+                        section = resize(np.squeeze(preds_test[i]), (upsampled_mask.shape[0], upsampled_mask.shape[1]), mode='constant', preserve_range=True)
                         upsampled_mask[coords[0]:coords[2]+coords[0], coords[1]:coords[3]+coords[1]] += section.astype(np.uint8)
                     else:
-                        section = resize(np.squeeze(preds_test[i]), (coords[3], coords[2]), preserve_range=True)
+                        section = resize(np.squeeze(preds_test[i]), (coords[3], coords[2]), mode='constant', preserve_range=True)
                         upsampled_mask[coords[1]:coords[3]+coords[1], coords[0]:coords[2]+coords[0]] += section.astype(np.uint8)
                 masks.append(upsampled_mask)
                 index += len(faceList)

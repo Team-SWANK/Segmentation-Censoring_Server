@@ -43,15 +43,15 @@ def main():
             if('pixelization' in options):
                 image = pixelization(image, mask)
                 print("finished pixelization")
-            if('gaussian' in options):
-                image = guassian_blur(image, mask, 10)
-                print("finished gaussian")
             if('pixel_sort' in options):
                 image = pixel_sort(image, mask)
                 print("finished pixel sort")
             if('fill_in' in options):
                 image = fill_in(image, mask)
                 print("finished fill in")
+            if('gaussian' in options):
+                image = guassian_blur(image, mask, 10)
+                print("finished gaussian")
             # encodes image in base64 before sending
             encoded_image = get_response_image(image)
             db.set(q["id"], json.dumps(encoded_image))
