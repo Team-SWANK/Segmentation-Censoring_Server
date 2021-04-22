@@ -13,6 +13,6 @@ IMAGE_DTYPE = "float32"
 # initialize constants used for server queuing
 SEGMENT_IMAGE_QUEUE = "seg_image_queue"
 CENSOR_IMAGE_QUEUE = "cens_image_queue"
-BATCH_SIZE = 10
+BATCH_SIZE = 3
 SERVER_SLEEP = 0.25
 CLIENT_SLEEP = 0.25
