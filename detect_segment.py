@@ -113,12 +113,7 @@ def main():
             q = json.loads(q.decode("utf-8"))
             image = helpers.base64_decode_image(q["image"], settings.IMAGE_DTYPE, q["shape"])
             # check to see if the batch list is None
-            if batch is None:
-                batch.append(image)
-            # otherwise, stack the data
-            else:
-                print(image.shape)
-                batch.append(image)
+            batch.append(image)
             # update the list of image IDs
             imageIDs.append(q["id"])
         
@@ -133,7 +128,7 @@ def main():
                     image_cv2,
                     scaleFactor=1.03,
                     minNeighbors=5,
-                    minSize=(30, 30)
+                    minSize=(40, 40)
                 )
                 # print("Found {0} Faces!".format(len(faces)))
                 if len(face) == 0:
@@ -158,7 +153,6 @@ def main():
                     h_img = math.floor(h+2*transpose_y) if y_img + math.floor(w+2*transpose_y) <= image.shape[0] else image.shape[0] - y_img
                     X_positions.append([x_img, y_img, w_img, h_img])
                     roi_color = image[y_img:h_img+y_img, x_img:w_img+x_img]
-                    print(roi_color.shape)
                     X[index] = resize(roi_color, (settings.IMAGE_HEIGHT, settings.IMAGE_WIDTH), mode='constant', preserve_range=True)
                     index +=1
             preds_test = (model.predict(X, verbose=1) > 0.9).astype(np.uint8)
