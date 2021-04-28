@@ -1,10 +1,7 @@
 import os
 import math
 import cv2
-from keras.utils.generic_utils import to_list
 import numpy as np
-import matplotlib.pyplot as plt
-from skimage.io import imread
 from skimage.transform import resize
 from keras.models import Model
 from keras.layers import Input, BatchNormalization, Activation, Dropout

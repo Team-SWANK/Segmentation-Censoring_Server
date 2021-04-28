@@ -1,9 +1,7 @@
-import os
 import io
 from flask import Flask, request, jsonify
 from flask_restful import Resource, Api
 from flask_cors import CORS
-import math
 import redis
 import numpy as np
 import redis
@@ -15,8 +13,11 @@ import json
 import datetime
 import base64
 from skimage.io import imread
+from skimage.transform import resize
 from tensorflow.keras.preprocessing.image import img_to_array
 from PIL import Image
+import piexif
+import bson
 
 
 app = Flask(__name__)
@@ -55,19 +56,25 @@ class Censor(Resource):
         # reads file streams and inputs them in correct array structure
         files = request.files.to_dict()
         if files.get("image") and files.get("mask"):
-            img = imread(io.BytesIO(files['image'].read()))[:,:,:3]
-            mask_img = imread(io.BytesIO(files['mask'].read()))[:,:,:3]
-            # img = prepare_image(img, (settings.IMAGE_WIDTH, settings.IMAGE_HEIGHT))
-            # img = img.copy(order="C")
-            # mask_img = mask_img.copy(order="C")
+            im=io.BytesIO(files['image'].read())
+            img = imread(im)
+            mask_img = imread(io.BytesIO(files['mask'].read()))
+            # need Pillow to get exif data from image
+            im=Image.open(im)
+
+            exif= im.info["exif"] if "exif" in im.info else piexif.dump({"0th":{}, "Exif":{}, "GPS":{}, "1st":{}, "thumbnail":None})
+            tags=request.args.get('metadata', None)
+            tags=tags.strip('][').split(', ')
+
             k = str(uuid.uuid4())
             image_shape = img.shape
-            # img = helpers.base64_encode_image(img)
-            # mask_img = helpers.base64_encode_image(mask_img)
+            # resize mask in case it isn't the same size
+            mask_img = resize(mask_img, (image_shape[0], image_shape[1]), mode='constant', preserve_range=True)
+
             img = get_response_image(img)
             mask_img = get_response_image(mask_img)
-            d = {"id": k, "image": img, "mask": mask_img, "shape": image_shape, "options": options}
-            db.rpush(settings.CENSOR_IMAGE_QUEUE, json.dumps(d))
+            d = {"id": k, "image": img, "mask": mask_img, "shape": image_shape, "options": options, "exif": exif, "tags": tags, "format": im.format}
+            db.rpush(settings.CENSOR_IMAGE_QUEUE, bson.dumps(d))
             timeDelta = datetime.datetime.now() + datetime.timedelta(minutes=3)
 
             while True:
@@ -146,3 +153,5 @@ api.add_resource(Censor, '/Censor')
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0",port=8000)
+
+
