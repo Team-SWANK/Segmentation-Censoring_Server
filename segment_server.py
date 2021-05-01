@@ -29,12 +29,10 @@ db = redis.StrictRedis(host=settings.REDIS_HOST,
 db.flushall()
 
 
-def prepare_image(image, target):
+def prepare_image(image):
 	# if the image mode is not RGB, convert it
 	if image.mode != "RGB":
 		image = image.convert("RGB")
-	# resize the input image and preprocess it
-	# image = image.resize(target)
 	image = img_to_array(image)
 	image = np.expand_dims(image, axis=0)
 	# return the processed image
@@ -52,28 +50,36 @@ class Censor(Resource):
         return {'hello': 'world'}
     def post(self):
         data = {"success": False}
-        options=request.args.get('options', None)
+        options=request.args.get('options', '[]')
         # reads file streams and inputs them in correct array structure
         files = request.files.to_dict()
         if files.get("image") and files.get("mask"):
             im=io.BytesIO(files['image'].read())
-            img = imread(im)
+            # img = imread(im)
             mask_img = imread(io.BytesIO(files['mask'].read()))
             # need Pillow to get exif data from image
             im=Image.open(im)
+            if im.mode != "RGB":
+                im = im.convert("RGB")
 
             exif= im.info["exif"] if "exif" in im.info else piexif.dump({"0th":{}, "Exif":{}, "GPS":{}, "1st":{}, "thumbnail":None})
-            tags=request.args.get('metadata', None)
-            tags=tags.strip('][').split(', ')
-
+            tags=request.args.get('metadata', '[]')
+            tags=tags.strip('][').split(',')
+            
             k = str(uuid.uuid4())
+            img = np.array(im)
             image_shape = img.shape
+            # swap axes in case axes do not correspond correctly
+            if(image_shape[0] == mask_img.shape[1] and image_shape[1] == mask_img.shape[0]):
+                mask_img = np.swapaxes(mask_img, 0,1)
             # resize mask in case it isn't the same size
-            mask_img = resize(mask_img, (image_shape[0], image_shape[1]), mode='constant', preserve_range=True)
+            if(image_shape[0] != mask_img.shape[0] and image_shape[1] != mask_img.shape[1]):
+                mask_img = resize(mask_img, (image_shape[0], image_shape[1]), mode='constant', preserve_range=True)
 
             img = get_response_image(img)
             mask_img = get_response_image(mask_img)
-            d = {"id": k, "image": img, "mask": mask_img, "shape": image_shape, "options": options, "exif": exif, "tags": tags, "format": im.format}
+            
+            d = {"id": k, "image": img, "mask": mask_img, "shape": image_shape, "options": options, "exif": exif, "tags": tags}
             db.rpush(settings.CENSOR_IMAGE_QUEUE, bson.dumps(d))
             timeDelta = datetime.datetime.now() + datetime.timedelta(minutes=3)
 
@@ -102,7 +108,7 @@ class Segment(Resource):
         files = request.files.to_dict()
         if files.get("image"):
             image =Image.open(io.BytesIO(files['image'].read()))
-            image = prepare_image(image, (settings.IMAGE_WIDTH, settings.IMAGE_HEIGHT))
+            image = prepare_image(image)
             # ensure our NumPy array is C-contiguous as well,
             # otherwise we won't be able to serialize it
             image = image.copy(order="C")

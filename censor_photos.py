@@ -1,15 +1,13 @@
-import os
 import io
 import numpy as np
 import redis
 import settings
-import helpers
 import bson
 import time
 import base64
 from PIL import Image
 from skimage.io import imread
-from algorithms import guassian_blur, pixelization, pixel_sort, fill_in, metadata_erase
+from algorithms import guassian_blur, pixelization, pixel_sort, fill_in, black_bar, metadata_erase
 import json
 
 # connect to Redis server
@@ -33,26 +31,25 @@ def main():
             image = stringToRGB(q["image"])
             mask = stringToRGB((q["mask"]))[:,:,:1].astype(np.float)
             options = q["options"]
-            options = options.strip('][').split(', ')
+            options = options.strip('][').split(',')
 
             # runs through options available in a specific order
+            if('black_bar' in options):
+                image = black_bar(Image.fromarray(image), mask)
             if('pixelization' in options):
                 image = pixelization(image, mask)
-                print("finished pixelization")
             if('pixel_sort' in options):
                 image = pixel_sort(image, mask)
-                print("finished pixel sort")
-            if('fill_in' in options):
-                image = fill_in(image, mask)
-                print("finished fill in")
+            # if('fill_in' in options):
+            #     image = fill_in(image, mask)
             if('gaussian' in options):
                 image = guassian_blur(image, mask, 10)
-                print("finished gaussian")
 
             # runs through metadata scrubber if there is anything
+            print("erasing metadata")
             image = Image.fromarray(image)
             imgByteArr = io.BytesIO()
-            image.save(imgByteArr, format=q["format"])
+            image.save(imgByteArr, "JPEG")
             imgByteArr = imgByteArr.getvalue()
             image = metadata_erase(imgByteArr, q["exif"], q["tags"])
 

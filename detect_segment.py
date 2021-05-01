@@ -123,9 +123,9 @@ def main():
                 image_cv2 = np.array(batch[i][0], dtype="uint8")
                 face = faceCascade.detectMultiScale(
                     image_cv2,
-                    scaleFactor=1.03,
-                    minNeighbors=5,
-                    minSize=(40, 40)
+                    scaleFactor=1.015,
+                    minNeighbors=7,
+                    minSize=(30, 30)
                 )
                 # print("Found {0} Faces!".format(len(faces)))
                 if len(face) == 0:
@@ -160,10 +160,10 @@ def main():
                 for i in range(index, index+len(faceList)):
                     coords = X_positions[i]
                     if coords[2] == upsampled_mask.shape[0] and coords[3] == upsampled_mask.shape[1]:
-                        section = resize(np.squeeze(preds_test[i]), (upsampled_mask.shape[0], upsampled_mask.shape[1]), mode='constant', preserve_range=True)
+                        section = resize(np.squeeze(preds_test[i]), (upsampled_mask.shape[0], upsampled_mask.shape[1]), mode='constant', preserve_range=True, order=0)
                         upsampled_mask[coords[0]:coords[2]+coords[0], coords[1]:coords[3]+coords[1]] += section.astype(np.uint8)
                     else:
-                        section = resize(np.squeeze(preds_test[i]), (coords[3], coords[2]), mode='constant', preserve_range=True)
+                        section = resize(np.squeeze(preds_test[i]), (coords[3], coords[2]), mode='constant', preserve_range=True, order=0)
                         upsampled_mask[coords[1]:coords[3]+coords[1], coords[0]:coords[2]+coords[0]] += section.astype(np.uint8)
                 masks.append(upsampled_mask)
                 index += len(faceList)
