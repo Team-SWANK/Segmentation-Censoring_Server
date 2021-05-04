@@ -40,8 +40,8 @@ def main():
                 image = pixelization(image, mask)
             if('pixel_sort' in options):
                 image = pixel_sort(image, mask)
-            # if('fill_in' in options):
-            #     image = fill_in(image, mask)
+            if('fill_in' in options):
+                image = fill_in(image, mask)
             if('gaussian' in options):
                 image = guassian_blur(image, mask, 10)
 
