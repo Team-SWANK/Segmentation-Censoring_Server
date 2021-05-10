@@ -26,12 +26,13 @@ def main():
     while True:
         queue = db.lrange(settings.CENSOR_IMAGE_QUEUE, 0, 1)
         if len(queue) > 0:
-            print("found image in queue")
             q = bson.loads(queue[0])
             image = stringToRGB(q["image"])
             mask = stringToRGB((q["mask"]))[:,:,:1].astype(np.float)
             options = q["options"]
             options = options.strip('][').split(',')
+            print("* Censoring image with shape: {}".format(image.shape))
+            print("* Censoring with options: {}".format(options))
 
             # runs through options available in a specific order
             if('black_bar' in options):
@@ -43,10 +44,13 @@ def main():
             if('fill_in' in options):
                 image = fill_in(image, mask)
             if('gaussian' in options):
-                image = guassian_blur(image, mask, 10)
+                if('pixel_sort' in options):
+                    image = guassian_blur(image, mask, 3)
+                else:
+                    image = guassian_blur(image, mask, 7)
 
             # runs through metadata scrubber if there is anything
-            print("erasing metadata")
+            print("* Erasing metadata")
             image = Image.fromarray(image)
             imgByteArr = io.BytesIO()
             image.save(imgByteArr, "JPEG")

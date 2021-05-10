@@ -34,21 +34,36 @@ def pixelization(img, mask_img):
     return np.array(img)
 
 def pixel_sort(img, img_mask):
+    resized = False
+    img_mask = img_mask.reshape(img_mask.shape[0], img_mask.shape[1])
+    # resizes mask and changes resized boolean to  True
+    if img_mask.shape[0] > 1200 or img_mask.shape[1] > 1200:
+        resize_mask = Image.fromarray(img_mask)
+        scale_ratio = min(1200/img_mask.shape[0], 1200/img_mask.shape[1])
+        resize_mask = resize_mask.resize(tuple([int(x * scale_ratio) for x in resize_mask.size]))
+        resize_image = Image.fromarray(img).resize(tuple([int(x * scale_ratio) for x in [img.shape[1], img.shape[0]]]))
+        img_mask = np.array(resize_mask)
+        resize_image = np.array(resize_image)
+        resized = True
+    img_mask = np.where(img_mask > 250, 255, 0)
     # Stores beginning and end of row
     selected_row = [-1,-1]
     # Sort pixels horizontally
     for row in range(len(img_mask)):
         for col in range(len(img_mask[row])):
-            val = img_mask[row][col][0]
+            val = img_mask[row][col]
             if val == 255:
                 if selected_row[0] == -1:
                     selected_row[0] = col
             else:
                 if selected_row[0] != -1:
                     selected_row[1] = col
-                    np.random.shuffle(img[row][selected_row[0]:selected_row[1]])
+                    np.random.shuffle(resize_image[row][selected_row[0]:selected_row[1]])
                     selected_row = [-1, -1]
         selected_row = [-1, -1]
+
+    if resized:
+        img = np.array(Image.fromarray(resize_image).resize((img.shape[1], img.shape[0])))
     return img
 
 def fill_in(img, img_mask):
@@ -233,11 +248,13 @@ def adjust_exif2(tags_chosen,exif):
         for chosen in tags_chosen:
             try:
                 if index == 0:
-                    #tag_num = piexif.ImageIFD.__getattribute__(piexif.ImageIFD,chosen)
                     new_exif[tag_space][piexif.ImageIFD.__getattribute__(piexif.ImageIFD,chosen)] = ""
                 elif index == 1:
-                    #print(type(new_exif[tag_space][piexif.ExifIFD.__getattribute__(piexif.ExifIFD,chosen)]))
-                    new_exif[tag_space][piexif.ExifIFD.__getattribute__(piexif.ExifIFD,chosen)] = b''
+                    tagType = type(new_exif[tag_space][piexif.ExifIFD.__getattribute__(piexif.ExifIFD,chosen)])
+                    if tagType is tuple:
+                        new_exif[tag_space][piexif.ExifIFD.__getattribute__(piexif.ExifIFD,chosen)] = (0,0)
+                    else:
+                        new_exif[tag_space][piexif.ExifIFD.__getattribute__(piexif.ExifIFD,chosen)] = b''
                 elif index == 2:
                     tagType = type(new_exif[tag_space][piexif.GPSIFD.__getattribute__(piexif.GPSIFD,chosen)])
                     if tagType is bytes:
@@ -251,6 +268,13 @@ def adjust_exif2(tags_chosen,exif):
                 i+=1
                 # print("removed: ",chosen, i,"/",len(tags_chosen))
             except: continue #this accounts for the fact that each tag doesnt exist in every tag_space
+    try:
+        del new_exif['Exif'][piexif.ExifIFD.SceneType]
+        # if "ExposureTime" in tags_chosen:
+        #     del new_exif['Exif'][piexif.ExifIFD.ExposureTime]
+    except:
+        pass
+
     return new_exif
 
 def metadata_erase(img, exif, tags):
