@@ -58,7 +58,10 @@ def pixel_sort(img, img_mask):
             else:
                 if selected_row[0] != -1:
                     selected_row[1] = col
-                    np.random.shuffle(resize_image[row][selected_row[0]:selected_row[1]])
+                    if resized:
+                        np.random.shuffle(resize_image[row][selected_row[0]:selected_row[1]])
+                    else:
+                        np.random.shuffle(img[row][selected_row[0]:selected_row[1]])
                     selected_row = [-1, -1]
         selected_row = [-1, -1]
 

@@ -100,6 +100,7 @@ def main():
         queue = db.lrange(settings.SEGMENT_IMAGE_QUEUE, 0, settings.BATCH_SIZE - 1)
         imageIDs = []
         batch = []
+        confidences = []
         # loop over the queue
         for q in queue:
             # deserialize the object and obtain the input image
@@ -109,12 +110,13 @@ def main():
             batch.append(image)
             # update the list of image IDs
             imageIDs.append(q["id"])
+            # add to list of confidence attributes
+            confidences.append(q["confidence"])
         
         # check to see if we need to process the batch
         if len(imageIDs) > 0:
             print('* ImageIDs: {}'.format(imageIDs))
             faces = {}
-            confidence = 0.2
             for i in range(len(batch)):
                 print("* Batch size: {}".format(batch[i][0].shape))
                 image = np.array(batch[i][0], dtype="uint8")
@@ -138,6 +140,7 @@ def main():
             numFaces = []
             for imageNum, detections in faces.items():
                 image = batch[imageNum][0]
+                confidence = confidences[imageNum]
                 (h,w) = image.shape[:2]
                 index=0
                 # loop over the detections

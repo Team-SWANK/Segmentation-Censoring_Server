@@ -109,6 +109,8 @@ class Segment(Resource):
         if files.get("image"):
             image =Image.open(io.BytesIO(files['image'].read()))
             image = prepare_image(image)
+            # get confidence from query or set to 0.7
+            confidence = float(request.args.get('confidence', 0.7))
             # ensure our NumPy array is C-contiguous as well,
             # otherwise we won't be able to serialize it
             image = image.copy(order="C")
@@ -117,7 +119,7 @@ class Segment(Resource):
             k = str(uuid.uuid4())
             image_shape = image.shape
             image = helpers.base64_encode_image(image)
-            d = {"id": k, "image": image, "shape": image_shape}
+            d = {"id": k, "image": image, "shape": image_shape, 'confidence': confidence}
             db.rpush(settings.SEGMENT_IMAGE_QUEUE, json.dumps(d))
             timeDelta = datetime.datetime.now() + datetime.timedelta(minutes=3)
 
