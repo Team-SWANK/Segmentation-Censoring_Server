@@ -18,6 +18,8 @@ from tensorflow.keras.preprocessing.image import img_to_array
 from PIL import Image
 import piexif
 import bson
+import atexit
+import os
 
 
 app = Flask(__name__)
@@ -97,6 +99,10 @@ class Censor(Resource):
 
             if "ImageBytes" in data:
                 data["success"] = True
+            else:
+                db.delete(k)
+                return "System error", 500
+
         return jsonify(data)
 
 class Segment(Resource):
@@ -151,6 +157,9 @@ class Segment(Resource):
             # indicate that the request was a success
             if "predictions" in data:
                 data["success"] = True
+            else:
+                db.delete(k)
+                return "System error", 500
 
         # return the data dictionary as a JSON response
         return jsonify(data)
@@ -158,6 +167,12 @@ class Segment(Resource):
 
 api.add_resource(Segment, '/Segment')
 api.add_resource(Censor, '/Censor')
+
+def restartProcesses():
+    os.system("workon photosense_api")
+    os.system("nohup bash commands.sh")
+
+atexit.register(restartProcesses)
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0",port=8000)

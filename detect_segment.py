@@ -14,6 +14,9 @@ import helpers
 import redis
 import time
 import json
+import os 
+import atexit
+
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -202,6 +205,12 @@ def main():
             db.ltrim(settings.SEGMENT_IMAGE_QUEUE, len(imageIDs), -1)
         # sleep for a small amount
         time.sleep(settings.SERVER_SLEEP)
+
+def restartProcesses():
+    os.system("workon photosense_api")
+    os.system("nohup bash commands.sh")
+
+atexit.register(restartProcesses)
 
 if __name__ == "__main__":
     main()

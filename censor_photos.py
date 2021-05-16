@@ -9,6 +9,8 @@ from PIL import Image
 from skimage.io import imread
 from algorithms import guassian_blur, pixelization, pixel_sort, fill_in, black_bar, metadata_erase
 import json
+import os
+import atexit
 
 # connect to Redis server
 db = redis.StrictRedis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
@@ -64,7 +66,11 @@ def main():
 
         time.sleep(settings.SERVER_SLEEP)
         
+def restartProcesses():
+    os.system("workon photosense_api")
+    os.system("nohup bash commands.sh")
 
+atexit.register(restartProcesses)
 
 if __name__ == "__main__":
     main()
